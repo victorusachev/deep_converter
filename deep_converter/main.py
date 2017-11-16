@@ -41,53 +41,48 @@ class FileWrapper(object):
         return f'<{self.__class__.__name__}: {self}>'
 
 
-def files_from_archive(file):
-    with BytesIO(file.data) as in_memory:
-        with ZipFile(in_memory) as archive:
-            for info in archive.infolist():
-                if info.is_dir():
-                    continue
-                with archive.open(info) as fp:
-                    filename = Path(info.filename)
-                    if file.path:
-                        filename = file.path / info.filename
-                    inner_file = FileWrapper(filename, fp.read())
-                    yield inner_file
+class Converter(object):
+    def __init__(self):
+        pass
 
+    @staticmethod
+    def files_from_archive(file):
+        with BytesIO(file.data) as in_memory:
+            with ZipFile(in_memory) as archive:
+                for info in archive.infolist():
+                    if info.is_dir():
+                        continue
+                    with archive.open(info) as fp:
+                        filename = Path(info.filename)
+                        if file.path:
+                            filename = file.path / info.filename
+                        inner_file = FileWrapper(filename, fp.read())
+                        yield inner_file
 
-def convert_image(file):
-    new_filename = file.path.with_suffix('.pdf')
-    canvas = Canvas(str(new_filename))
-    canvas.setTitle(new_filename.stem)
-    with BytesIO(file.data) as in_memory:
-        reader = ImageReader(in_memory)
-        size = reader.getSize()
-        canvas.setPageSize(size)
-        canvas.drawImage(reader, 0, 0, *size, mask='auto')
-        canvas.showPage()
-    new_file = FileWrapper(path=new_filename, data=canvas.getpdfdata())
-    yield new_file
+    @staticmethod
+    def convert_image(file):
+        new_filename = file.path.with_suffix('.pdf')
+        canvas = Canvas(str(new_filename))
+        canvas.setTitle(new_filename.stem)
+        with BytesIO(file.data) as in_memory:
+            reader = ImageReader(in_memory)
+            size = reader.getSize()
+            canvas.setPageSize(size)
+            canvas.drawImage(reader, 0, 0, *size, mask='auto')
+            canvas.showPage()
+        new_file = FileWrapper(path=new_filename, data=canvas.getpdfdata())
+        yield new_file
 
+    @classmethod
+    def convert_archive(cls, file):
+        for inner in cls.files_from_archive(file):
+            yield tuple(cls.convert(inner))
 
-def convert_archive(file):
-    for inner in files_from_archive(file):
-        yield tuple(convert(inner))
-
-
-def convert(file):
-    if file.mime_type in SUPPORTED_ARCHIVE_TYPES:
-        yield from convert_archive(file)
-    elif file.mime_type in SUPPORTED_IMAGE_TYPES:
-        yield from convert_image(file)
-    else:
-        yield file
-
-
-def flatten(iterable):
-    rv = []
-    if isinstance(iterable, (list, tuple, set)):
-        for el in iterable:
-            rv.extend(flatten(el))
-    else:
-        rv.append(iterable)
-    return rv
+    @classmethod
+    def convert(cls, file):
+        if file.mime_type in SUPPORTED_ARCHIVE_TYPES:
+            yield from cls.convert_archive(file)
+        elif file.mime_type in SUPPORTED_IMAGE_TYPES:
+            yield from cls.convert_image(file)
+        else:
+            yield file

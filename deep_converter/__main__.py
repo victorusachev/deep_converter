@@ -1,4 +1,5 @@
-from deep_converter.main import FileWrapper, convert, flatten
+from deep_converter.main import FileWrapper, Converter
+from deep_converter.utils.structures import flatten
 
 
 def main():
@@ -22,8 +23,9 @@ def main():
     elif args.path.is_file():
         paths.append(args.path)
 
+    converter = Converter()
     for path in paths:
-        res = tuple(convert(FileWrapper(path)))
+        res = tuple(converter.convert(FileWrapper(path)))
         pprint(flatten(res), indent=4, width=200)
 
 
