@@ -5,8 +5,7 @@ from zipfile import ZipFile
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen.canvas import Canvas
 
-import magic
-
+from deep_converter.utils.images import get_mime_type
 
 SUPPORTED_ARCHIVE_TYPES = ('application/zip',)
 SUPPORTED_IMAGE_TYPES = ('image/gif', 'image/jpeg', 'image/png')
@@ -42,19 +41,7 @@ class FileWrapper(object):
         return f'<{self.__class__.__name__}: {self}>'
 
 
-def get_mime_type(obj):
-    mime = magic.Magic(mime=True)
-    if isinstance(obj, (str, Path)):
-        return mime.from_file(str(obj))
-    elif isinstance(obj, bytes):
-        return mime.from_buffer(obj)
-    elif isinstance(obj, BytesIO):
-        return mime.from_buffer(obj.getvalue())
-    else:
-        raise TypeError
-
-
-def items_from_archive(file):
+def files_from_archive(file):
     with BytesIO(file.data) as in_memory:
         with ZipFile(in_memory) as archive:
             for info in archive.infolist():
@@ -83,7 +70,7 @@ def convert_image(file):
 
 
 def convert_archive(file):
-    for inner in items_from_archive(file):
+    for inner in files_from_archive(file):
         yield tuple(convert(inner))
 
 
